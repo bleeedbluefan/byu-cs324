@@ -1,0 +1,130 @@
+1.    Exec.c will print the pid of the process it's in, then sleep for 30 seconds. It will exit if there is no argument passed in or executes the command stored in as argv[1].
+2.    The last print statement will only execute if there's an error when execve runs.
+
+3.
+   ./exec /bin/cat                                              
+   Program "./exec" has pid 2555484. Sleeping.              
+   Running exec of "/bin/cat"    
+
+4.
+
+   jmckeen@saguaro:~/CS_324/byu-cs324/hw-fork-exec$ ./exec /bin/cat                                                 
+   Program "./exec" has pid 2559666. Sleeping.              
+   Running exec of "/bin/cat"    
+
+   jmckeen@saguaro:~/CS_324/byu-cs324/hw-fork-exec$ ps -p 2559666 -o user,pid,ppid,state,command
+   USER         PID    PPID S COMMAND
+   jmckeen  2559666 2556384 S ./exec /bin/cat
+
+   jmckeen@saguaro:~/CS_324/byu-cs324/hw-fork-exec$ ps -p 2559666 -o user,pid,ppid,state,command
+   USER         PID    PPID S COMMAND
+   jmckeen  2559666 2556384 S /bin/cat
+
+5. Everything that's between the output commands is the same except for COMMAND. This is because the
+   output is derived from different processes that are being exected by exec.c.
+
+6. 
+   jmckeen@saguaro:~/CS_324/byu-cs324/hw-fork-exec$ ./exec /does-not-exist 
+   Program "./exec" has pid 2564149. Sleeping.              
+   Running exec of "/does-not-exist"                        
+   End of program "./exec".   
+
+   We passed it a program that doesn't exits, which causes an error and it prints the error message.
+
+7. Fork.c, the current process is forked, and a series of functions run depending on whether thay are called in the child or parent process.
+
+8. Parent runs AC, child runs AB. Each is finished before D is called.
+
+9. 
+
+jmckeen@zion:~/CS_324/byu-cs324/hw-fork-exec$ ./fork                  │jmckeen  1797365 1794977 S ./fork
+Starting program; process has pid 1797365                             │jmckeen  1797366 1797365 S  \_ ./fork
+Section A;  pid 1797365                                               │jmckeen@zion:~/CS_324/byu-cs324/hw-fork-exec$ ps -p 1797365 -p 1797366
+Section A;  pid 1797366                                               │  -o user,pid,ppid,state,command --forest
+Section B                                                             │USER         PID    PPID S COMMAND
+Section B                                                             │jmckeen  1797365 1794977 S ./fork
+Section B done sleeping 
+
+10. The difference between the two commands is the 2nd command the child process's has exited and become like a zombie from the "Z" status; this also reflects with the printed "defunct".
+
+11. wait(&child_status), place on the line after line 33. This will wait on the status of the child.
+
+12. 
+
+   jmckeen@everglades:~/CS_324/byu-cs324/hw-fork-exec$ ./fork             │jmckeen  3352293 3350482 S ./fork
+   Starting program; process has pid 3352293                              │jmckeen  3352294 3352293 S  \_ ./fork
+   Section A;  pid 3352293                                                │jmckeen@everglades:~/CS_324/byu-cs324/hw-fork-exec$ ps -p 3352293 -p 
+   Section A;  pid 3352294                                                │3352294 -o user,pid,ppid,state,command --forest
+   Section B                                                              │USER         PID    PPID S COMMAND
+   Section B done sleeping                                                │jmckeen  3352293 3350482 S ./fork
+
+
+13. In the first command, parent and child process displayed. Second command, parent has ended, child is still running. 
+   Child process has different PPID in second command, because it's parent terminated.
+
+14. 
+
+jmckeen@everglades:~/CS_324/byu-cs324/hw-fork-exec$ ./fork             │USER         PID    PPID S COMMAND
+Starting program; process has pid 3353845                              │jmckeen  3353845 3350482 S ./fork
+Section A;  pid 3353845                                                │jmckeen  3353846 3353845 S  \_ ./fork
+Section A;  pid 3353846                                                │jmckeen@everglades:~/CS_324/byu-cs324/hw-fork-exec$ ps -p 3353845 -p 
+Section B                                                              │3353846 -o user,pid,ppid,state,command --forest
+Section C                                                              │USER         PID    PPID S COMMAND
+Section C done sleeping                                                │jmckeen  3353846       1 S ./fork
+
+15. In first command, parent and child process displayed, parent has ended by second command & child is running,
+   Child has different number because parent has terminated.
+
+16. 
+   jmckeen@everglades:~/CS_324/byu-cs324/hw-fork-exec$ cat fork-output.txt
+   BEFORE FORK
+   SECTION A
+   SECTION C
+   SECTION A
+   SECTION B
+
+17. Parent process run into section A & C, then child process run into A & B. Parent process completes as child starts.
+
+18.
+
+   Starting program; process has pid 3361511
+   Section A;  pid 3361511
+   Section A;  pid 3361513
+   Section B
+   Section B done sleeping
+   hello from Section B
+   Section C
+   Section C done sleeping
+
+19.
+
+   Starting program; process has pid 3362655
+   Section A;  pid 3362655
+   Section A;  pid 3362657
+   Section B
+   Section B done sleeping
+   Program "./fork" has pid 3362657. Sleeping.
+   Running exec of "/bin/cat"
+   foobar
+   Section C
+   Section C done sleeping
+
+20.
+
+   Starting program; process has pid 3363732
+   Section A;  pid 3363732
+   Section A;  pid 3363734
+   Section B
+   Section B done sleeping
+   Program "./fork" has pid 3363734. Sleeping.
+   Running exec of "/bin/cat"
+   Section C
+   Section C done sleeping
+
+   jmckeen@everglades:~/CS_324/byu-cs324/hw-fork-exec$ cat fork-output.txt
+   BEFORE FORK
+   SECTION A
+   SECTION C
+   SECTION A
+   SECTION B
+   foobar
