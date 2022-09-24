@@ -1,7 +1,7 @@
 /* 
  * tsh - A tiny shell program with job control
  * 
- * <Put your name and login ID here>
+ * <Justin McKeen, jmckeen>
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -106,6 +106,113 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
+	char *argv[MAXARGS];
+	int cmds[MAXARGS];
+	int stdin_redir[MAXARGS];
+	int stdout_redir[MAXARGS];
+	parseline(cmdline, argv);
+	int theParseArgs = parseargs(argv, cmds, stdin_redir, stdout_redir);
+	builtin_cmd(argv);
+
+	if (theParseArgs == 1) {
+		int pid = fork();
+
+		if (pid == 0) {
+			if (stdin_redir[0] != -1) { 
+				FILE* inputFile = fopen(argv[stdin_redir[0]], "r");
+				int readDescriptor = fileno(inputFile);
+				dup2(readDescriptor, STDIN_FILENO);
+				close(readDescriptor);	
+			} 
+
+			if (stdout_redir[0] != -1) {
+				FILE* outputFile = fopen(argv[stdout_redir[0]], "w");
+				int writeDescriptor = fileno(outputFile);
+				dup2(writeDescriptor, STDOUT_FILENO);
+				close(writeDescriptor);
+			}
+
+
+
+
+			char *newEnv[] = { NULL };
+			execve(argv[cmds[0]], &argv[cmds[0]], newEnv); 
+			exit(0);
+
+		} else {
+			setpgid(pid, pid);
+			waitpid(pid, NULL, 0);
+
+		}
+	} else {
+		
+		int pgid = 0;
+		int pids[theParseArgs];
+		int fds[2];
+		int save0 = -1;
+		int save1 = -1;
+		
+		for (int i = 0; i < theParseArgs; ++i) { 
+			if (i != 0) { save0 = fds[0]; save1 = fds[1]; } 	
+			if (i != (theParseArgs- 1)) { 					
+				if (pipe(fds) == -1) { printf("Error with pipe\n"); return; }
+			}
+
+			
+			int pid = fork();
+	
+			if (pid != 0) {
+				if (i == 0) { pgid = pid; }
+				if (i != 0) { close(save0); close(save1); }  	
+				setpgid(pid, pgid);
+				pids[i] = pid;
+			} 
+
+			else {
+				
+				if (stdin_redir[i] != -1) { 
+					FILE* inputFile = fopen(argv[stdin_redir[i]], "r");
+					int readDescriptor = fileno(inputFile);
+					dup2(readDescriptor, STDIN_FILENO);
+					close(readDescriptor);	
+				} 
+
+				if (stdout_redir[i] != -1) {
+					FILE* outputFile = fopen(argv[stdout_redir[i]], "w");
+					int writeDescriptor = fileno(outputFile);
+					dup2(writeDescriptor, STDOUT_FILENO);
+					close(writeDescriptor);
+				}
+					
+				if (i == 0) {
+				       	dup2(fds[1], STDOUT_FILENO);	
+				}
+
+				else if (i != 0 && i != (theParseArgs- 1)) {
+					dup2(save0, STDIN_FILENO);
+					dup2(fds[1], STDOUT_FILENO);
+				}
+
+				else if (i == (theParseArgs- 1)) {
+					dup2(save0, STDIN_FILENO);
+				}
+
+				close(fds[0]);
+				close(fds[1]);
+				if (save0 != -1) { close(save0); close(save1); }
+
+				
+				// Execute command
+				char *newEnv[] = { NULL };
+				execve(argv[cmds[i]], &argv[cmds[i]], newEnv); 
+
+			}
+		}
+		for (int i = 0; i < theParseArgs; ++i) {
+			waitpid(pids[i], NULL, 0);
+		}
+	}
+
     return;
 }
 
@@ -231,9 +338,9 @@ int parseline(const char *cmdline, char **argv)
  * builtin_cmd - If the user has typed a built-in command then execute
  *    it immediately.  
  */
-int builtin_cmd(char **argv) 
-{
-    return 0;     /* not a builtin command */
+int builtin_cmd(char **argv) {
+	if (strcmp(argv[0], "quit") == 0) { exit(0); }
+	return 0;
 }
 
 /***********************
@@ -269,4 +376,3 @@ void app_error(char *msg)
     fprintf(stdout, "%s\n", msg);
     exit(1);
 }
-
